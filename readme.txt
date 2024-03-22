@@ -10,4 +10,5 @@ The idea is to tweak the convert script and not hard code the directories; this 
 # Usage
 1. Install docker desktop
 2. Run the command in the run_build_cmd.txt file
+>Note you can skip this step if you already made an image, if you don't know what that means run step 2.
 3. Run the command in the run_cmd.txt file
