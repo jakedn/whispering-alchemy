@@ -6,4 +6,4 @@ RUN apt-get update && apt-get install git -y
 RUN pip3 install "git+https://github.com/openai/whisper.git" 
 RUN apt-get install -y ffmpeg
 
-ENTRYPOINT ["python3", "./scripts/convert.py"]
+ENTRYPOINT ["python3", "./scripts/alchemize.py"]

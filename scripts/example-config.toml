@@ -1,0 +1,25 @@
+[app]
+# Directory to store Whisper models
+model_dir = "/app/model"  
+
+# Main recordings directory
+recordings_dir = "/app/recordings_dir" 
+
+# Directory of files pending rename
+pending_dir = "/app/recordings_dir/intake-pending-rename"
+
+# Directory of files after renaming, awaiting sort
+renamed_dir = "/app/recordings_dir/intake-pending-sort"  
+
+# Move files that their formats aren't recognized, and the location for rename failures. 
+move_unsupported = false
+unsupported_dir = "/app/recordings_dir/intake-pending-rename/pending-manual-rename" 
+
+# Print detailed output
+verbose = true  
+
+# Maximum words to include in file renaming
+max_words = 4
+
+
+[sort]
