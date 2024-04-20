@@ -2,6 +2,7 @@ import whisper
 import os
 import re
 import tomllib
+import shutil
 
 
 def validate_app_config(app_dic):            
@@ -17,17 +18,17 @@ def validate_app_config(app_dic):
     if not os.path.isdir(app_dic['recordings_dir']):
         raise FileNotFoundError("recordings_dir directory does not exist")
 
-    # pending_dir
-    if not isinstance(app_dic['pending_dir'], str):
-        raise ValueError("pending_dir must be a string")
-    if not os.path.isdir(app_dic['pending_dir']):
-        raise FileNotFoundError("pending_dir directory does not exist")
+    # pending_rename_dir
+    if not isinstance(app_dic['pending_rename_dir'], str):
+        raise ValueError("pending_rename_dir must be a string")
+    if not os.path.isdir(app_dic['pending_rename_dir']):
+        raise FileNotFoundError("pending_rename_dir directory does not exist")
 
      # rename_to_dir
-    if not isinstance(app_dic['renamed_dir'], str):
-        raise ValueError("renamed_dir must be a string")
-    if not os.path.isdir(app_dic['renamed_dir']):
-        raise FileNotFoundError("renamed_dir directory does not exist")
+    if not isinstance(app_dic['pending_sort_dir'], str):
+        raise ValueError("pending_sort_dir must be a string")
+    if not os.path.isdir(app_dic['pending_sort_dir']):
+        raise FileNotFoundError("pending_sort_dir directory does not exist")
 
     # move_if_rename_fail
     if not isinstance(app_dic['move_unsupported'], bool):
@@ -68,8 +69,8 @@ def load_config(config_file):
     variable_names = [
     "model_dir",
     "recordings_dir",
-    "pending_dir",
-    "renamed_dir",
+    "pending_rename_dir",
+    "pending_sort_dir",
     "move_unsupported",
     "unsupported_dir",
     "verbose",
@@ -83,7 +84,6 @@ def load_config(config_file):
         exit()
 
     validate_app_config(config_dic['app'])
-    validate_sort_config(config_dic['sort'])
     return config_dic
     
 
@@ -120,11 +120,10 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
                 print(f"File '{to_name}' already exists and has to many duplicates. Skipping rename.\n")
                 return None
 
-    os.rename(from_name, to_name)
+    shutil.move(from_name, to_name)
     if verbose:
         print(f"Renamed '{from_name}' to '{to_name}'.\n")
     return to_name
-
 
 
 def get_first_words(in_audio_file, download_model_dir, max_words):
@@ -150,6 +149,7 @@ def get_first_words(in_audio_file, download_model_dir, max_words):
     last_word_index = min(max_words, len(first_words))
     return first_words[:last_word_index]
 
+
 def rename_files(app_dic):
     #name dic will be a double dicitionary to save the naming data
     name_dic = {}
@@ -158,8 +158,8 @@ def rename_files(app_dic):
     sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(mp3|wav)' #TODO magic values mp3 and wav
 
     # get all audio files in the convert dir and extract information saving to the name_dic
-    for file_name in os.listdir(app_dic['pending_dir']):
-        file_path = os.path.join(app_dic['pending_dir'], file_name)
+    for file_name in os.listdir(app_dic['pending_rename_dir']):
+        file_path = os.path.join(app_dic['pending_rename_dir'], file_name)
 
         if file_name.lower().endswith((".mp3", ".wav")):  # TODO magic values mp3 and wav
             if app_dic['verbose']:
@@ -184,7 +184,7 @@ def rename_files(app_dic):
                     if app_dic['verbose']:
                         print(f'Moving to {app_dic['unsupported_dir']}')
                     safe_rename(
-                        os.path.join(app_dic['pending_dir'], file_name),
+                        os.path.join(app_dic['pending_rename_dir'], file_name),
                         os.path.join(app_dic['unsupported_dir'], file_name), 
                         add_count = True, verbose = app_dic['verbose'])
                 continue
@@ -195,8 +195,8 @@ def rename_files(app_dic):
                 f'.{ext}')
         
             safe_rename(
-                os.path.join(app_dic['pending_dir'], file_name),
-                os.path.join(app_dic['renamed_dir'], new_file_name),
+                os.path.join(app_dic['pending_rename_dir'], file_name),
+                os.path.join(app_dic['pending_sort_dir'], new_file_name),
                 add_count = True, verbose = app_dic['verbose'])
             
             
@@ -206,6 +206,68 @@ def rename_files(app_dic):
     return name_dic
 
 
+def add_to_logseq(logseq_dir, file_path, name_dic):
+    return;
+
+
+def sort_files(config_in):
+    app_config = config_in['app']
+
+    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(mp3|wav)' #TODO magic values mp3 and wav
+    
+    for file_name in os.listdir(app_config['pending_sort_dir']):
+        match = re.match(file_name_pattern, file_name)
+        if not match:
+            if app_config['verbose']:
+                print(f'filename: {file_name} is not in a supported format to sort, please sort manually.')
+            continue
+        groups = match.groups()
+        name_dic = {
+            'yy': groups[0], 
+            'mm': groups[1], 
+            'dd': groups[2], 
+            'tttt': groups[4], 
+            'words': groups[5].split('-')
+            }
+        file_path = os.path.join(app_config['pending_sort_dir'], file_name)
+
+        # logseq sorting
+        logseq_config = config['logseq']
+        if logseq_config['enable']:
+            logseq_asset_dir = os.path.join(logseq_config['logseq_dir'], 'assets/voicenotes')
+            logseq_journal_dir = os.path.join(logseq_config['logseq_dir'], 'journals')
+            
+            tags = logseq_config['tags']
+
+            found_keyword = False
+            for tag in tags.keys():
+                curr_tag = tags[tag]
+
+                for keyword in curr_tag['keywords']:
+                    if ' '.join(name_dic['words']).lower()[:len(keyword)] == keyword:
+                        found_keyword = True
+                        break
+
+                if found_keyword:
+                    logseq_file = f"{name_dic['yy']}_{name_dic['mm']}_{name_dic['dd']}.md"
+
+                    # add spacing if the journal already exists for aestetics 
+                    file_spacing = '\n-\n- ' if os.path.exists(os.path.join(logseq_journal_dir, logseq_file)) else ''
+            
+                    # tag of the found keyword
+                    tag_name = f'[[{curr_tag['tag_str']}]] ' if curr_tag['tag_str'] != '' else ''
+
+                    with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
+                        file.write(f'{file_spacing}{tag_name}[[validate whisper]] ![voice recording](../assets/voicenotes/{file_name})')
+                    
+                    safe_rename(file_path, os.path.join(logseq_asset_dir, file_name), verbose=app_config['verbose'])
+                    
+                    if app_config['verbose']:
+                        print(f'added {file_name} to logseq\n')
+                    
+                    break
+
+
 if __name__ == '__main__':
     config_file = './scripts/config.toml'  #TODO add other config file locations to check; currently this is only setup for docker
     config = load_config(config_file)
@@ -213,3 +275,4 @@ if __name__ == '__main__':
         print('Successfully loaded config\n')
 
     rename_files(config['app'])
+    sort_files(config)
