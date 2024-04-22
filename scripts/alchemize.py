@@ -3,6 +3,7 @@ import os
 import re
 import tomllib
 import shutil
+import datetime
 
 
 def validate_app_config(app_dic):            
@@ -126,11 +127,11 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
     return to_name
 
 
-def get_first_words(in_audio_file, download_model_dir, max_words):
-    model = whisper.load_model("large", download_root=download_model_dir)
+def get_first_words(audio_file_in, model_dir_in, max_words):
+    model = whisper.load_model("large", download_root=model_dir_in)
 
     # load audio and pad/trim it to fit 30 seconds
-    audio = whisper.load_audio(in_audio_file)
+    audio = whisper.load_audio(audio_file_in)
     audio = whisper.pad_or_trim(audio)
 
     # make log-Mel spectrogram and move to the same device as the model
@@ -148,6 +149,22 @@ def get_first_words(in_audio_file, download_model_dir, max_words):
     first_words = re.findall(r'\b[\w\',]+\b', result.text)
     last_word_index = min(max_words, len(first_words))
     return first_words[:last_word_index]
+
+
+def get_transcription(audio_file_in, model_dir_in):
+    model = whisper.load_model("large", download_root=model_dir_in)
+    # audio = whisper.load_audio(audio_file_in)
+    # audio = whisper.pad_or_trim(audio)
+    # # make log-Mel spectrogram and move to the same device as the model
+    # mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(model.device)
+
+    # # decode the audio
+    # options = whisper.DecodingOptions(fp16 = False, language="en")
+    # result = whisper.decode(model, mel, options)
+
+    result = model.transcribe(audio_file_in, fp16 = False)
+
+    return result['text']
 
 
 def rename_files(app_dic):
@@ -256,23 +273,43 @@ def sort_files(config_in):
             
                     # tag of the found keyword
                     tag_name = f'[[{curr_tag['tag_str']}]] ' if curr_tag['tag_str'] != '' else ''
+                    
+                    # get transcription
+                    trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'])) if curr_tag['transcribe'] else ''
+                    if len(trans_str) > logseq_config['max_transcription_len']:
+                        if app_config['verbose']:
+                            print(f'file: {file_name} has a trasnscription of more then {logseq_config['max_transcription_len']} characters, skipping transcription')
+                        trans_str = ''
 
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
-                        file.write(f'{file_spacing}{tag_name}[[validate whisper]] ![voice recording](../assets/voicenotes/{file_name})')
+                        file.write(
+                            f'{file_spacing}{tag_name}[[validate whisper]] ![voice recording](../assets/voicenotes/{file_name})' + 
+                            trans_str)
                     
                     safe_rename(file_path, os.path.join(logseq_asset_dir, file_name), verbose=app_config['verbose'])
                     
                     if app_config['verbose']:
                         print(f'added {file_name} to logseq\n')
-                    
+
                     break
 
 
 if __name__ == '__main__':
     config_file = './scripts/config.toml'  #TODO add other config file locations to check; currently this is only setup for docker
     config = load_config(config_file)
+
+    if config['app']['verbose']:
+        print(f'started: {datetime.datetime.now()}')
+        
     if config['app']['verbose']:
         print('Successfully loaded config\n')
-
+        print('Start renaming files')
     rename_files(config['app'])
+
+    if config['app']['verbose']:
+        print('Finished renaming files')
+        print('Start sorting files')
     sort_files(config)
+
+    if config['app']['verbose']:
+        print(f'finished: {datetime.datetime.now()}')
