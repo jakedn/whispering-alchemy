@@ -102,12 +102,14 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
     """
 
     if not os.path.exists(from_name):
-        print(f"File '{from_name}' does not exist. Skipping rename.")
+        if verbose:
+            print(f"File '{from_name}' does not exist. Skipping rename.")
         return None
 
     if os.path.exists(to_name):
         if not add_count:
-            print(f"File '{to_name}' already exists. Skipping rename.")
+            if verbose:
+                print(f"File '{to_name}' already exists. Skipping rename.")
             return None
         else:
             # Add a numeric suffix to avoid overwriting
@@ -118,12 +120,13 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
             to_name = f"{base}_{i}{ext}"
 
             if i == 100:
-                print(f"File '{to_name}' already exists and has to many duplicates. Skipping rename.\n")
+                if verbose:
+                    print(f"File '{to_name}' already exists and has to many duplicates. Skipping rename.")
                 return None
 
     shutil.move(from_name, to_name)
     if verbose:
-        print(f"Renamed '{from_name}' to '{to_name}'.\n")
+        print(f"Renamed '{from_name}' to '{to_name}'")
     return to_name
 
 
@@ -204,6 +207,7 @@ def rename_files(app_dic):
                         os.path.join(app_dic['pending_rename_dir'], file_name),
                         os.path.join(app_dic['unsupported_dir'], file_name), 
                         add_count = True, verbose = app_dic['verbose'])
+                    print('\n', end = '')
                 continue
 
             new_file_name = (
@@ -215,7 +219,7 @@ def rename_files(app_dic):
                 os.path.join(app_dic['pending_rename_dir'], file_name),
                 os.path.join(app_dic['pending_sort_dir'], new_file_name),
                 add_count = True, verbose = app_dic['verbose'])
-            
+            print('\n', end = '')
             
             # this is to ease sorting
             name_dic[file_name] = {'yy': yy, 'mm': mm, 'dd': dd, 'tttt': tttt, 'ext': ext}
@@ -286,10 +290,13 @@ def sort_files(config_in):
                             f'{file_spacing}{tag_name}[[validate whisper]] ![voice recording](../assets/voicenotes/{file_name})' + 
                             trans_str)
                     
-                    safe_rename(file_path, os.path.join(logseq_asset_dir, file_name), verbose=app_config['verbose'])
+                    rename_result = safe_rename(file_path, os.path.join(logseq_asset_dir, file_name), verbose=app_config['verbose'])
                     
+                    if rename_result is None:
+                        print(f"'{file_name}' was not able to be moved to the logseq asset folder, make sure you fix manually!")
+
                     if app_config['verbose']:
-                        print(f'added {file_name} to logseq\n')
+                        print(f"Added '{file_name}' link to logseq journal '{logseq_file}'\n")
 
                     break
 
@@ -299,15 +306,15 @@ if __name__ == '__main__':
     config = load_config(config_file)
 
     if config['app']['verbose']:
-        print(f'started: {datetime.datetime.now()}')
-        
+        print(f'\nstarted: {datetime.datetime.now()}')
+
     if config['app']['verbose']:
         print('Successfully loaded config\n')
         print('Start renaming files')
     rename_files(config['app'])
 
     if config['app']['verbose']:
-        print('Finished renaming files')
+        print('Finished renaming files\n')
         print('Start sorting files')
     sort_files(config)
 
