@@ -6,10 +6,16 @@ model_dir = "/app/model"
 recordings_dir = "/app/recordings_dir" 
 
 # Directory of files pending rename
-pending_dir = "/app/recordings_dir/intake-pending-rename"
+pending_rename_dir = "/app/recordings_dir/intake-pending-rename"
 
 # Directory of files after renaming, awaiting sort
-renamed_dir = "/app/recordings_dir/intake-pending-sort"  
+pending_sort_dir = "/app/recordings_dir/intake-pending-sort"
+
+# List of directories that contain files to transcribe (manually sorted directories)
+pending_transcribe_dirs = ["/app/recordings_dir/intake-pending-transcribe"]
+
+# What model should be used for the transcribe dirs?
+transcribe_model_mode = "medium"
 
 # Move files that their formats aren't recognized, and the location for rename failures. 
 move_unsupported = false
@@ -22,4 +28,36 @@ verbose = true
 max_words = 4
 
 
-[sort]
+[logseq]
+enable = true
+logseq_dir = "/app/logseq"
+
+# logseq transcription mode
+logseq_model_mode = "large"
+
+# max length that will be put into logseq (in characters)
+max_transcription_len = 2000
+
+###########################################################################################
+# PARA projects
+###########################################################################################
+tags.project.keywords = ["project", "para project"]
+tags.project.tag_str = "📐 project"
+tags.project.transcribe = true
+
+
+###########################################################################################
+# Health related tags
+###########################################################################################
+tags.health.keywords = ["health", "personal health"]
+tags.health.tag_str = "⚕️ Health"
+tags.health.transcribe = true
+
+tags.health_stats.keywords = ["health statistics"]
+tags.health_stats.tag_str = "📊 health-stats"
+tags.health_stats.transcribe = true
+
+
+###########################################################################################
+# add new tags in the same way!
+###########################################################################################

@@ -154,8 +154,8 @@ def get_first_words(audio_file_in, model_dir_in, max_words):
     return first_words[:last_word_index]
 
 
-def get_transcription(audio_file_in, model_dir_in):
-    model = whisper.load_model("large", download_root=model_dir_in)
+def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
+    model = whisper.load_model(model_mode_in, download_root=model_dir_in)
     # audio = whisper.load_audio(audio_file_in)
     # audio = whisper.pad_or_trim(audio)
     # # make log-Mel spectrogram and move to the same device as the model
@@ -279,7 +279,7 @@ def sort_files(config_in):
                     tag_name = f'[[{curr_tag['tag_str']}]] ' if curr_tag['tag_str'] != '' else ''
                     
                     # get transcription
-                    trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'])) if curr_tag['transcribe'] else ''
+                    trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'], logseq_config['logseq_model_mode'])) if curr_tag['transcribe'] else ''
                     if len(trans_str) > logseq_config['max_transcription_len']:
                         if app_config['verbose']:
                             print(f'file: {file_name} has a trasnscription of more then {logseq_config['max_transcription_len']} characters, skipping transcription')
@@ -301,12 +301,50 @@ def sort_files(config_in):
                     break
 
 
+def transcribe_files(config_in):
+    app_config = config_in['app']
+    for transcribe_dir in app_config['pending_transcribe_dirs']:
+        if app_config['verbose']:
+            print(f"\nWorking in directory '{transcribe_dir}'")
+        if not os.path.exists(transcribe_dir):
+            print(f"directory '{transcribe_dir}' does not exist or is not mounted. skipping...")
+            continue
+
+        for file_name in os.listdir(transcribe_dir):
+            if app_config['verbose']:
+                print(f"Working on file '{file_name}'")
+            file_path = os.path.join(transcribe_dir, file_name)
+            file_name_str, file_name_ext =  os.path.splitext(file_name)
+
+            new_file_name = f'{file_name_str}.{app_config['transcribe_model_mode']}.txt'
+            new_file_path = os.path.join(transcribe_dir, new_file_name)
+
+            if os.path.exists(new_file_path):
+                if app_config['verbose']:
+                    print(f"file '{file_name}' has txt file. skipping...")
+                continue
+
+            if file_name_ext not in ['.wav', '.mp3']:
+                if app_config['verbose']:
+                    print(f"unkown file type for file '{file_name}'. skipping...")
+                continue
+
+            # get transcription
+            trans_str = get_transcription(file_path, app_config['model_dir'], app_config['transcribe_model_mode'])
+
+            with open(new_file_path, "w") as file:
+                file.write(trans_str)
+            
+            if app_config['verbose']:
+                print(f'transcribed file {file_name}')
+
+
 if __name__ == '__main__':
     config_file = './scripts/config.toml'  #TODO add other config file locations to check; currently this is only setup for docker
     config = load_config(config_file)
 
     if config['app']['verbose']:
-        print(f'\nstarted: {datetime.datetime.now()}')
+        print(f'\nStarted running script: {datetime.datetime.now()}')
 
     if config['app']['verbose']:
         print('Successfully loaded config\n')
@@ -314,9 +352,17 @@ if __name__ == '__main__':
     rename_files(config['app'])
 
     if config['app']['verbose']:
-        print('Finished renaming files\n')
-        print('Start sorting files')
+        print('Finished renaming files')
+        print('\nStart sorting files')
     sort_files(config)
 
     if config['app']['verbose']:
-        print(f'finished: {datetime.datetime.now()}')
+        print('Finished sorting files')
+        print('\nStart manual transcriptions')
+
+    transcribe_files(config)
+    if config['app']['verbose']:
+        print('Fininished manual transcriptions')
+
+    if config['app']['verbose']:
+        print(f'\nFinished running script: {datetime.datetime.now()}')
