@@ -88,6 +88,30 @@ def load_config(config_file):
     return config_dic
     
 
+def get_file_types(in_file_types, return_type = "list"):
+    ext_list = []
+
+    # remove leading '.' if they are present
+    for file_ext in in_file_types:
+        if file_ext[0] == '.':
+            ext_list.append(file_ext[1:])
+        else:
+            ext_list.append(file_ext)
+
+    if return_type == "list":
+        return ext_list
+
+    elif return_type == "tuple":
+        return tuple(ext_list)
+
+    elif return_type == "regex":
+        return '|'.join(ext_list)
+    
+    else:
+        print("unknown return type")
+        exit(1)
+
+
 def safe_rename(from_name, to_name, add_count=False, verbose = True):
     """
     Renames a file safely, adding a numeric suffix if the destination already exists.
@@ -174,14 +198,17 @@ def rename_files(app_dic):
     #name dic will be a double dicitionary to save the naming data
     name_dic = {}
 
+    file_ext_reg_str = get_file_types(app_dic["convertible_extensions"], "regex")
+    file_ext_tuple = get_file_types(app_dic["convertible_extensions"], "tuple")
+
     '''                       yy      mm     dd     tttt   cnt       ext     '''
-    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(mp3|wav)' #TODO magic values mp3 and wav
+    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(' + file_ext_reg_str + r')'
 
     # get all audio files in the convert dir and extract information saving to the name_dic
     for file_name in os.listdir(app_dic['pending_rename_dir']):
         file_path = os.path.join(app_dic['pending_rename_dir'], file_name)
 
-        if file_name.lower().endswith((".mp3", ".wav")):  # TODO magic values mp3 and wav
+        if file_name.lower().endswith(file_ext_tuple):
             if app_dic['verbose']:
                 print(f'Working on file: {file_name}', flush=True)
 
@@ -234,7 +261,9 @@ def add_to_logseq(logseq_dir, file_path, name_dic):
 def sort_files(config_in):
     app_config = config_in['app']
 
-    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(mp3|wav)' #TODO magic values mp3 and wav
+    file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
+
+    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(' + file_ext_reg_str + r')'
     
     for file_name in os.listdir(app_config['pending_sort_dir']):
         match = re.match(file_name_pattern, file_name)
@@ -303,6 +332,8 @@ def sort_files(config_in):
 
 def transcribe_files(config_in):
     app_config = config_in['app']
+    file_ext_list = get_file_types(app_config["convertible_extensions"], "list")
+
     for transcribe_dir in app_config['pending_transcribe_dirs']:
         if app_config['verbose']:
             print(f"\nWorking in directory '{transcribe_dir}'")
@@ -324,7 +355,7 @@ def transcribe_files(config_in):
                     print(f"file '{file_name}' has txt file. skipping...")
                 continue
 
-            if file_name_ext not in ['.wav', '.mp3']:
+            if file_name_ext[1:] not in file_ext_list:
                 if app_config['verbose']:
                     print(f"unkown file type for file '{file_name}'. skipping...")
                 continue

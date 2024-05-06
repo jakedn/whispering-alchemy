@@ -2,6 +2,10 @@
 # Directory to store Whisper models
 model_dir = "/app/model"  
 
+# File type extensions that we transcribe and move; 
+# for ex: if you want to run on mp3 you can add "mp3" or ".mp3" to the list
+convertible_extensions = ["mp3", "wav"]
+
 # Main recordings directory
 recordings_dir = "/app/recordings_dir" 
 
