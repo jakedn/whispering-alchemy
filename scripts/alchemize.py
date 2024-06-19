@@ -369,7 +369,8 @@ def transcribe_files(config_in):
     app_config = config_in['app']
     file_ext_list = get_file_types(app_config["convertible_extensions"], "list")
 
-    transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']].append(app_config['pending_sort_dir'])
+    transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']]
+    transcribe_dir_list.append(app_config['pending_sort_dir'])
     for transcribe_dir in transcribe_dir_list:
         if app_config['verbose']:
             print(f"\nWorking in directory '{transcribe_dir}'")
