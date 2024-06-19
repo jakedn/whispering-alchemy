@@ -160,6 +160,9 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
 
 
 def get_first_words(audio_file_in, model_dir_in, max_words):
+    global current_transcriptions
+
+    current_transcriptions += 1
     model = whisper.load_model("large", download_root=model_dir_in)
 
     # load audio and pad/trim it to fit 30 seconds
@@ -184,6 +187,7 @@ def get_first_words(audio_file_in, model_dir_in, max_words):
 
 
 def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
+    global current_transcriptions
     result = ''
 
     # if transcription file exists we will take the transcription from the existing txt file
@@ -197,6 +201,7 @@ def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
         print("WARNING! trying to transcribe when transcription disabled! transcription left blank")
         return result
 
+    current_transcriptions += 1
     model = whisper.load_model(model_mode_in, download_root=model_dir_in)
     # audio = whisper.load_audio(audio_file_in)
     # audio = whisper.pad_or_trim(audio)
@@ -214,6 +219,8 @@ def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
 
 
 def rename_files(app_dic):
+    global max_transcriptions
+    global current_transcriptions
     #name dic will be a double dicitionary to save the naming data
     name_dic = {}
 
@@ -225,6 +232,10 @@ def rename_files(app_dic):
 
     # get all audio files in the convert dir and extract information saving to the name_dic
     for file_name in os.listdir(app_dic['pending_rename_dir']):
+        if max_transcriptions <= current_transcriptions:
+            print(f'got to the max transcriptions, no more transcribing')
+            return name_dic
+        
         file_path = os.path.join(app_dic['pending_rename_dir'], file_name)
 
         if file_name.lower().endswith(file_ext_tuple):
@@ -352,6 +363,9 @@ def sort_files(config_in):
 
 
 def transcribe_files(config_in):
+    global max_transcriptions
+    global current_transcriptions
+
     app_config = config_in['app']
     file_ext_list = get_file_types(app_config["convertible_extensions"], "list")
 
@@ -364,6 +378,10 @@ def transcribe_files(config_in):
             continue
 
         for file_name in os.listdir(transcribe_dir):
+            if max_transcriptions <= current_transcriptions:
+                print(f'got to the max transcriptions, no more transcribing')
+                return ;
+            
             if app_config['verbose']:
                 print(f"Working on file '{file_name}'")
 
@@ -403,10 +421,17 @@ if __name__ == '__main__':
 
     if config['app']['disable_transcribe']:
         DEACTIVATE_TRANSCRIBE = True
-        if config['app']['verbose']:
-            print("Transcriptions DISABLED!")
+        print("Transcriptions DISABLED!")
+
+    global max_transcriptions
+    global current_transcriptions
+    current_transcriptions = 0
+    max_transcriptions = config['app']['transcribe_limit']
+    if max_transcriptions == 0:
+        max_transcriptions = 100
 
     if config['app']['verbose']:
+        print(f'Max transcriptions set to {max_transcriptions}')
         print('Successfully loaded config\n')
         print('Start renaming files')
     if not DEACTIVATE_TRANSCRIBE:

@@ -2,6 +2,9 @@
 # Disables transcription, this will make sure that the whisper model isn't loaded.
 disable_transcribe = false
 
+# limits the script to only X transcriptions per run, where X is the value defined below.
+transcribe_limit = 0
+
 # Directory to store Whisper models
 model_dir = "/app/model"  
 
