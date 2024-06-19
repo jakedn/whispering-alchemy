@@ -1,0 +1,11 @@
+make a container that doesnt have whisper and has a triggering sort file with no file transcription
+result should be functioning warning and moved to logseq with blank transcription
+
+make container with whisper 
+files with
+bad name in rename folder
+bad name in sorting folder
+good name in rename folder
+good name edge cases
+good name in sorting folder
+result should be no error skipping the bad names and transcribing the good names and moving them to sort destinations

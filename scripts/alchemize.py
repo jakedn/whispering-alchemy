@@ -1,9 +1,14 @@
-import whisper
 import os
 import re
 import tomllib
 import shutil
 import datetime
+
+DEACTIVATE_TRANSCRIBE = False
+try:
+    import whisper
+except ImportError:
+    DEACTIVATE_TRANSCRIBE = True
 
 
 def validate_app_config(app_dic):            
@@ -179,6 +184,19 @@ def get_first_words(audio_file_in, model_dir_in, max_words):
 
 
 def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
+    result = ''
+
+    # if transcription file exists we will take the transcription from the existing txt file
+    transcription_file = f'{audio_file_in}.{model_mode_in}.txt'
+    if os.path.exists(transcription_file):
+        with open(transcription_file, "r") as file:
+            result = file.read()
+        return result
+    
+    if DEACTIVATE_TRANSCRIBE:
+        print("WARNING! trying to transcribe when transcription disabled! transcription left blank")
+        return result
+
     model = whisper.load_model(model_mode_in, download_root=model_dir_in)
     # audio = whisper.load_audio(audio_file_in)
     # audio = whisper.pad_or_trim(audio)
@@ -189,9 +207,10 @@ def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
     # options = whisper.DecodingOptions(fp16 = False, language="en")
     # result = whisper.decode(model, mel, options)
 
-    result = model.transcribe(audio_file_in, fp16 = False)
+    transcription_res = model.transcribe(audio_file_in, fp16 = False)
+    result = transcription_res['text']
 
-    return result['text']
+    return result
 
 
 def rename_files(app_dic):
@@ -280,6 +299,8 @@ def sort_files(config_in):
             'words': groups[5].split('-')
             }
         file_path = os.path.join(app_config['pending_sort_dir'], file_name)
+        
+        #todo custom sorting logic that is independant of using logseq; maybe there should be two functions logseq sorting and file sorting.
 
         # logseq sorting
         logseq_config = config['logseq']
@@ -334,7 +355,8 @@ def transcribe_files(config_in):
     app_config = config_in['app']
     file_ext_list = get_file_types(app_config["convertible_extensions"], "list")
 
-    for transcribe_dir in app_config['pending_transcribe_dirs']:
+    transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']].append(app_config['pending_sort_dir'])
+    for transcribe_dir in transcribe_dir_list:
         if app_config['verbose']:
             print(f"\nWorking in directory '{transcribe_dir}'")
         if not os.path.exists(transcribe_dir):
@@ -344,6 +366,7 @@ def transcribe_files(config_in):
         for file_name in os.listdir(transcribe_dir):
             if app_config['verbose']:
                 print(f"Working on file '{file_name}'")
+
             file_path = os.path.join(transcribe_dir, file_name)
             file_name_str, file_name_ext =  os.path.splitext(file_name)
 
@@ -352,12 +375,13 @@ def transcribe_files(config_in):
 
             if os.path.exists(new_file_path):
                 if app_config['verbose']:
-                    print(f"file '{file_name}' has txt file. skipping...")
+                    print(f"file '{file_name}' has transcription txt file. skipping...")
                 continue
 
+            # check file extention
             if file_name_ext[1:] not in file_ext_list:
                 if app_config['verbose']:
-                    print(f"unkown file type for file '{file_name}'. skipping...")
+                    print(f"'{file_name}' does not have a convertible extension as per the configuration file, skipping...")
                 continue
 
             # get transcription
@@ -367,7 +391,7 @@ def transcribe_files(config_in):
                 file.write(trans_str)
             
             if app_config['verbose']:
-                print(f'transcribed file {file_name}')
+                print(f"transcribed file '{file_name}'")
 
 
 if __name__ == '__main__':
@@ -377,23 +401,36 @@ if __name__ == '__main__':
     if config['app']['verbose']:
         print(f'\nStarted running script: {datetime.datetime.now()}')
 
+    if config['app']['disable_transcribe']:
+        DEACTIVATE_TRANSCRIBE = True
+        if config['app']['verbose']:
+            print("Transcriptions DISABLED!")
+
     if config['app']['verbose']:
         print('Successfully loaded config\n')
         print('Start renaming files')
-    rename_files(config['app'])
+    if not DEACTIVATE_TRANSCRIBE:
+        rename_files(config['app'])
+    else:
+        if config['app']['verbose']:
+            print('skipping rename because transcribing is not active')
 
     if config['app']['verbose']:
         print('Finished renaming files')
+        print('\nStart manual transcriptions')
+    if not DEACTIVATE_TRANSCRIBE:
+        transcribe_files(config)
+    else:
+        if config['app']['verbose']:
+            print('skipping transcribe because transcribing is not active')
+
+    if config['app']['verbose']:
+        print('Fininished manual transcriptions')
         print('\nStart sorting files')
     sort_files(config)
 
     if config['app']['verbose']:
         print('Finished sorting files')
-        print('\nStart manual transcriptions')
-
-    transcribe_files(config)
-    if config['app']['verbose']:
-        print('Fininished manual transcriptions')
 
     if config['app']['verbose']:
         print(f'\nFinished running script: {datetime.datetime.now()}')

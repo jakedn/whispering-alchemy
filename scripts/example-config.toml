@@ -1,4 +1,7 @@
 [app]
+# Disables transcription, this will make sure that the whisper model isn't loaded.
+disable_transcribe = false
+
 # Directory to store Whisper models
 model_dir = "/app/model"  
 
