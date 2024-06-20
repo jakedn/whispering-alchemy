@@ -387,9 +387,9 @@ def transcribe_files(config_in):
                 print(f"Working on file '{file_name}'")
 
             file_path = os.path.join(transcribe_dir, file_name)
-            file_name_str, file_name_ext =  os.path.splitext(file_name)
+            _, file_name_ext =  os.path.splitext(file_name)
 
-            new_file_name = f'{file_name_str}.{app_config['transcribe_model_mode']}.txt'
+            new_file_name = f'{file_name}.{app_config['transcribe_model_mode']}.txt'
             new_file_path = os.path.join(transcribe_dir, new_file_name)
 
             if os.path.exists(new_file_path):
