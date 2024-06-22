@@ -384,7 +384,7 @@ def transcribe_files(config_in):
                 return ;
             
             if app_config['verbose']:
-                print(f"Working on file '{file_name}'")
+                print(f"Working on file '{file_name}'", flush=True)
 
             file_path = os.path.join(transcribe_dir, file_name)
             _, file_name_ext =  os.path.splitext(file_name)
