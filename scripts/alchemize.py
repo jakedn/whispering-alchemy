@@ -228,7 +228,7 @@ def rename_files(app_dic):
     file_ext_tuple = get_file_types(app_dic["convertible_extensions"], "tuple")
 
     '''                       yy      mm     dd     tttt   cnt       ext     '''
-    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(' + file_ext_reg_str + r')'
+    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(' + file_ext_reg_str + r')$'
 
     # get all audio files in the convert dir and extract information saving to the name_dic
     for file_name in os.listdir(app_dic['pending_rename_dir']):
@@ -293,7 +293,7 @@ def sort_files(config_in):
 
     file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
 
-    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(' + file_ext_reg_str + r')'
+    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(' + file_ext_reg_str + r')$'
     
     for file_name in os.listdir(app_config['pending_sort_dir']):
         match = re.match(file_name_pattern, file_name)
