@@ -64,8 +64,19 @@ def validate_sort_config(sort_dic):
     return;
 
 
-def load_config(config_file):
-    with open(config_file, 'rb') as file:
+def load_config():
+    config_exits = False
+    config_options = ['./config/config.toml', './scripts/config.toml']
+    for config_path in config_options:
+        if os.path.exists(config_path):
+            config_exits = True
+            config_file_path = config_path
+            break
+    if not config_exits:
+        print("no config found, exiting...")
+        exit(1)
+
+    with open(config_file_path, 'rb') as file:
         config_dic = tomllib.load(file)
     # check validity
     if 'app' not in config_dic.keys():
@@ -348,7 +359,8 @@ def sort_files(config_in):
 
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
                         file.write(
-                            f'{file_spacing}{tag_name}[[validate whisper]] ![voice recording](../assets/voicenotes/{file_name})' + 
+                            f'{file_spacing}{tag_name}[[validate whisper]]' +
+                            f'\n    - ![voice recording](../assets/voicenotes/{file_name})' + 
                             trans_str)
                     
                     rename_result = safe_rename(file_path, os.path.join(logseq_asset_dir, file_name), verbose=app_config['verbose'])
@@ -414,8 +426,7 @@ def transcribe_files(config_in):
 
 
 if __name__ == '__main__':
-    config_file = './scripts/config.toml'  #TODO add other config file locations to check; currently this is only setup for docker
-    config = load_config(config_file)
+    config = load_config()
 
     if config['app']['verbose']:
         print(f'\nStarted running script: {datetime.datetime.now()}')
