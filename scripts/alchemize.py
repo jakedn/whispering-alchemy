@@ -301,6 +301,7 @@ def add_to_logseq(logseq_dir, file_path, name_dic):
 
 def sort_files(config_in):
     app_config = config_in['app']
+    model_mode = app_config['transcribe_model_mode']
 
     file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
 
@@ -323,9 +324,33 @@ def sort_files(config_in):
         file_path = os.path.join(app_config['pending_sort_dir'], file_name)
         
         #todo custom sorting logic that is independant of using logseq; maybe there should be two functions logseq sorting and file sorting.
+        # file based sorting
+        sort_config = app_config['sorting']
+        sort_model_mode = model_mode
+        if sort_config['enable']:
+            folders = sort_config['folder']
+            found_keyword = False
+            for folder in folders.keys():
+                curr_folder = folders[folder]
+
+                for keyword in curr_folder['keywords']:
+                    if ' '.join(name_dic['words']).lower()[:len(keyword)] == keyword:
+                        found_keyword = True
+                        break
+            if found_keyword:
+                new_dir = curr_folder['dir']
+                if not os.path.exists(new_dir):
+                    print(f"directory '{new_dir}' does not exist, skipping file '{file_name}'")
+                    break
+                new_file_path = os.path.join(new_dir, file_name)
+                rename_res = safe_rename(file_path, new_file_path, verbose= app_config['verbose'])
+                if rename_res is not None:
+                    safe_rename(f'{file_path}.{sort_model_mode}.txt', f'{new_file_path}.{sort_model_mode}.txt', verbose= app_config['verbose'])
+                break
 
         # logseq sorting
         logseq_config = config['logseq']
+        logseq_model_mode = logseq_config['logseq_model_mode']
         if logseq_config['enable']:
             logseq_asset_dir = os.path.join(logseq_config['logseq_dir'], 'assets/voicenotes')
             logseq_journal_dir = os.path.join(logseq_config['logseq_dir'], 'journals')
@@ -351,7 +376,7 @@ def sort_files(config_in):
                     tag_name = f'[[{curr_tag['tag_str']}]] ' if curr_tag['tag_str'] != '' else ''
                     
                     # get transcription
-                    trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'], logseq_config['logseq_model_mode'])) if curr_tag['transcribe'] else ''
+                    trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'], logseq_model_mode)) if curr_tag['transcribe'] else ''
                     if len(trans_str) > logseq_config['max_transcription_len']:
                         if app_config['verbose']:
                             print(f'file: {file_name} has a trasnscription of more then {logseq_config['max_transcription_len']} characters, skipping transcription')
@@ -367,7 +392,8 @@ def sort_files(config_in):
                     
                     if rename_result is None:
                         print(f"'{file_name}' was not able to be moved to the logseq asset folder, make sure you fix manually!")
-
+                    else:
+                        safe_rename(f'{file_name}.{logseq_model_mode}.txt', f'{file_name}.{logseq_model_mode}.txt.used')
                     if app_config['verbose']:
                         print(f"Added '{file_name}' link to logseq journal '{logseq_file}'\n")
 

@@ -38,6 +38,13 @@ verbose = true
 max_words = 4
 
 
+[sorting]
+enable = true
+
+folder.name.keywords = ["singing"]
+folder.name.dir = "/app/singing-songs"
+
+
 [logseq]
 enable = true
 logseq_dir = "/app/logseq"
