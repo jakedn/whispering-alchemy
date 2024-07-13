@@ -325,7 +325,7 @@ def sort_files(config_in):
         
         #todo custom sorting logic that is independant of using logseq; maybe there should be two functions logseq sorting and file sorting.
         # file based sorting
-        sort_config = app_config['sorting']
+        sort_config = config['sorting']
         sort_model_mode = model_mode
         if sort_config['enable']:
             folders = sort_config['folder']
