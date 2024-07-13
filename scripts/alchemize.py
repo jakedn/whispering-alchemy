@@ -337,16 +337,17 @@ def sort_files(config_in):
                     if ' '.join(name_dic['words']).lower()[:len(keyword)] == keyword:
                         found_keyword = True
                         break
-            if found_keyword:
-                new_dir = curr_folder['dir']
-                if not os.path.exists(new_dir):
-                    print(f"directory '{new_dir}' does not exist, skipping file '{file_name}'")
+
+                if found_keyword:
+                    new_dir = curr_folder['dir']
+                    if not os.path.exists(new_dir):
+                        print(f"directory '{new_dir}' does not exist, skipping file '{file_name}'")
+                        break
+                    new_file_path = os.path.join(new_dir, file_name)
+                    rename_res = safe_rename(file_path, new_file_path, verbose= app_config['verbose'])
+                    if rename_res is not None:
+                        safe_rename(f'{file_path}.{sort_model_mode}.txt', f'{new_file_path}.{sort_model_mode}.txt', verbose= app_config['verbose'])
                     break
-                new_file_path = os.path.join(new_dir, file_name)
-                rename_res = safe_rename(file_path, new_file_path, verbose= app_config['verbose'])
-                if rename_res is not None:
-                    safe_rename(f'{file_path}.{sort_model_mode}.txt', f'{new_file_path}.{sort_model_mode}.txt', verbose= app_config['verbose'])
-                break
 
         # logseq sorting
         logseq_config = config['logseq']
