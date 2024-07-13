@@ -396,7 +396,7 @@ def sort_files(config_in):
                     if rename_result is None:
                         print(f"'{file_name}' was not able to be moved to the logseq asset folder, make sure you fix manually!")
                     else:
-                        safe_rename(f'{file_name}.{logseq_model_mode}.txt', f'{file_name}.{logseq_model_mode}.txt.used')
+                        safe_rename(f'{file_path}.{logseq_model_mode}.txt', f'{file_path}.{logseq_model_mode}.txt.used')
                     if app_config['verbose']:
                         print(f"Added '{file_name}' link to logseq journal '{logseq_file}'\n")
 
