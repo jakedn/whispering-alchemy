@@ -348,6 +348,8 @@ def sort_files(config_in):
                     if rename_res is not None:
                         safe_rename(f'{file_path}.{sort_model_mode}.txt', f'{new_file_path}.{sort_model_mode}.txt', verbose= app_config['verbose'])
                     break
+            if found_keyword:
+                continue
 
         # logseq sorting
         logseq_config = config['logseq']
