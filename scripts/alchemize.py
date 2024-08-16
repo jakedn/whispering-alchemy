@@ -121,7 +121,7 @@ def get_file_types(in_file_types, return_type = "list"):
         return tuple(ext_list)
 
     elif return_type == "regex":
-        return '|'.join(ext_list)
+        return r'\.(' + '|'.join(ext_list) + r')$'
     
     else:
         print("unknown return type")
@@ -239,59 +239,59 @@ def rename_files(app_dic):
     file_ext_tuple = get_file_types(app_dic["convertible_extensions"], "tuple")
 
     '''                       yy      mm     dd     tttt   cnt       ext     '''
-    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(' + file_ext_reg_str + r')$'
+    sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?' + file_ext_reg_str
 
     # get all audio files in the convert dir and extract information saving to the name_dic
-    for file_name in os.listdir(app_dic['pending_rename_dir']):
+    rename_file_list = [ f for f in os.listdir(app_dic['pending_rename_dir']) if f.lower().endswith(file_ext_tuple) ]
+    for file_name in rename_file_list:
         if max_transcriptions <= current_transcriptions:
             print(f'got to the max transcriptions, no more transcribing')
             return name_dic
         
         file_path = os.path.join(app_dic['pending_rename_dir'], file_name)
 
-        if file_name.lower().endswith(file_ext_tuple):
+        if app_dic['verbose']:
+            print(f'Working on file: {file_name}', flush=True)
+
+        match = re.match(sony_format_pattern, file_name)
+
+        if match:
+            yy, mm, dd, tttt, _, ext = match.groups()
+            ext = ext.lower()
+            first_words = '-'.join(
+                get_first_words(
+                    file_path, 
+                    app_dic['model_dir'],
+                    app_dic['max_words']))
+        else:
             if app_dic['verbose']:
-                print(f'Working on file: {file_name}', flush=True)
-
-            match = re.match(sony_format_pattern, file_name)
-
-            if match:
-                yy, mm, dd, tttt, _, ext = match.groups()
-                ext = ext.lower()
-                first_words = '-'.join(
-                    get_first_words(
-                        file_path, 
-                        app_dic['model_dir'],
-                        app_dic['max_words']))
-            else:
-                if app_dic['verbose']:
-                    print(f'file is not in one of the naming formats supported\n' + \
-                          f'No rename for: {file_name}\n')
-            
-                if app_dic['move_unsupported']:
-                    if app_dic['verbose']:
-                        print(f'Moving to {app_dic['unsupported_dir']}')
-                    safe_rename(
-                        os.path.join(app_dic['pending_rename_dir'], file_name),
-                        os.path.join(app_dic['unsupported_dir'], file_name), 
-                        add_count = True, verbose = app_dic['verbose'])
-                    print('\n', end = '')
-                continue
-
-            new_file_name = (
-                f'20{yy}-{mm}-{dd}_{tttt}_' +
-                ('empty' if first_words == '' else f'{first_words}') +
-                f'.{ext}')
+                print(f'file is not in one of the naming formats supported\n' + \
+                        f'No rename for: {file_name}\n')
         
-            safe_rename(
-                os.path.join(app_dic['pending_rename_dir'], file_name),
-                os.path.join(app_dic['pending_sort_dir'], new_file_name),
-                add_count = True, verbose = app_dic['verbose'])
-            print('\n', end = '')
-            
-            # this is to ease sorting
-            name_dic[file_name] = {'yy': yy, 'mm': mm, 'dd': dd, 'tttt': tttt, 'ext': ext}
-            name_dic[file_name]['words'] = first_words
+            if app_dic['move_unsupported']:
+                if app_dic['verbose']:
+                    print(f'Moving to {app_dic['unsupported_dir']}')
+                safe_rename(
+                    os.path.join(app_dic['pending_rename_dir'], file_name),
+                    os.path.join(app_dic['unsupported_dir'], file_name), 
+                    add_count = True, verbose = app_dic['verbose'])
+                print('\n', end = '')
+            continue
+
+        new_file_name = (
+            f'20{yy}-{mm}-{dd}_{tttt}_' +
+            ('empty' if first_words == '' else f'{first_words}') +
+            f'.{ext}')
+    
+        safe_rename(
+            os.path.join(app_dic['pending_rename_dir'], file_name),
+            os.path.join(app_dic['pending_sort_dir'], new_file_name),
+            add_count = True, verbose = app_dic['verbose'])
+        print('\n', end = '')
+        
+        # this is to ease sorting
+        name_dic[file_name] = {'yy': yy, 'mm': mm, 'dd': dd, 'tttt': tttt, 'ext': ext}
+        name_dic[file_name]['words'] = first_words
     return name_dic
 
 
@@ -304,10 +304,12 @@ def sort_files(config_in):
     model_mode = app_config['transcribe_model_mode']
 
     file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
+    file_ext_tuple = get_file_types(app_config["convertible_extensions"], "tuple")
 
-    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*).(' + file_ext_reg_str + r')$'
+    file_name_pattern = r'(\d{4})-(\d{2})-(\d{2})(_(\d{4}))?_(.*)' + file_ext_reg_str
     
-    for file_name in os.listdir(app_config['pending_sort_dir']):
+    sort_file_list = [ f for f in os.listdir(app_config['pending_sort_dir']) if f.lower().endswith(file_ext_tuple) ]
+    for file_name in sort_file_list:
         match = re.match(file_name_pattern, file_name)
         if not match:
             if app_config['verbose']:
@@ -408,7 +410,7 @@ def transcribe_files(config_in):
     global current_transcriptions
 
     app_config = config_in['app']
-    file_ext_list = get_file_types(app_config["convertible_extensions"], "list")
+    file_ext_tuple = get_file_types(app_config["convertible_extensions"], "tuple")
 
     transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']]
     transcribe_dir_list.append(app_config['pending_sort_dir'])
@@ -418,8 +420,8 @@ def transcribe_files(config_in):
         if not os.path.exists(transcribe_dir):
             print(f"directory '{transcribe_dir}' does not exist or is not mounted. skipping...")
             continue
-
-        for file_name in os.listdir(transcribe_dir):
+        trans_file_list = [ f for f in os.listdir(transcribe_dir) if f.lower().endswith(file_ext_tuple) ]
+        for file_name in trans_file_list:
             if max_transcriptions <= current_transcriptions:
                 print(f'got to the max transcriptions, no more transcribing')
                 return ;
@@ -438,12 +440,6 @@ def transcribe_files(config_in):
                     print(f"file '{file_name}' has transcription txt file. skipping...")
                 continue
 
-            # check file extention
-            if file_name_ext[1:] not in file_ext_list:
-                if app_config['verbose']:
-                    print(f"'{file_name}' does not have a convertible extension as per the configuration file, skipping...")
-                continue
-
             # get transcription
             trans_str = get_transcription(file_path, app_config['model_dir'], app_config['transcribe_model_mode'])
 
@@ -458,7 +454,8 @@ if __name__ == '__main__':
     config = load_config()
 
     if config['app']['verbose']:
-        print(f'\nStarted running script: {datetime.datetime.now()}')
+        start_time = datetime.datetime.now()
+        print(f'\nStarted running script: {start_time}')
 
     if config['app']['disable_transcribe']:
         DEACTIVATE_TRANSCRIBE = True
@@ -473,6 +470,7 @@ if __name__ == '__main__':
 
     if config['app']['verbose']:
         print(f'Max transcriptions set to {max_transcriptions}')
+        print(f'only converting files with extentions: ',', '.join(get_file_types(config['app']["convertible_extensions"], "list")))
         print('Successfully loaded config\n')
         print('Start renaming files')
     if not DEACTIVATE_TRANSCRIBE:
@@ -500,3 +498,4 @@ if __name__ == '__main__':
 
     if config['app']['verbose']:
         print(f'\nFinished running script: {datetime.datetime.now()}')
+        print(f'Time elapsed: {datetime.datetime.now() - start_time}')
