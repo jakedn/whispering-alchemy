@@ -375,7 +375,7 @@ def sort_files(config_in):
                     logseq_file = f"{name_dic['yy']}_{name_dic['mm']}_{name_dic['dd']}.md"
 
                     # add spacing if the journal already exists for aestetics 
-                    file_spacing = '\n-\n- ' if os.path.exists(os.path.join(logseq_journal_dir, logseq_file)) else ''
+                    block_prefix = '\n-\n- ' if os.path.exists(os.path.join(logseq_journal_dir, logseq_file)) else '- '
             
                     # tag of the found keyword
                     tag_name = f'[[{curr_tag['tag_str']}]] ' if curr_tag['tag_str'] != '' else ''
@@ -389,7 +389,7 @@ def sort_files(config_in):
 
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
                         file.write(
-                            f'{file_spacing}{tag_name}[[validate whisper]]' +
+                            f'{block_prefix}{tag_name}[[validate whisper]]' +
                             f'\n    - ![voice recording](../assets/voicenotes/{file_name})' + 
                             trans_str)
                     
