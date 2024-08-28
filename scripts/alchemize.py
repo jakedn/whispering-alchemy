@@ -388,8 +388,9 @@ def sort_files(config_in):
                         trans_str = ''
 
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
+                        #TODO create entry in logseq config for the intake tag so mine isnt hard codded
                         file.write(
-                            f'{block_prefix}{tag_name}[[validate whisper]]' +
+                            f'{block_prefix}{tag_name}[[📨validate whisper]]' +
                             f'\n    - ![voice recording](../assets/voicenotes/{file_name})' + 
                             trans_str)
                     
