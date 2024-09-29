@@ -11,6 +11,13 @@ except ImportError:
     DEACTIVATE_TRANSCRIBE = True
 
 
+def verbose_print(in_str):
+    global app_config
+
+    if app_config['verbose']:
+        print(in_str)
+
+
 def validate_app_config(app_dic):            
     # model_dir
     if not isinstance(app_dic['model_dir'], str):
@@ -24,11 +31,11 @@ def validate_app_config(app_dic):
     if not os.path.isdir(app_dic['recordings_dir']):
         raise FileNotFoundError("recordings_dir directory does not exist")
 
-    # pending_rename_dir
-    if not isinstance(app_dic['pending_rename_dir'], str):
-        raise ValueError("pending_rename_dir must be a string")
-    if not os.path.isdir(app_dic['pending_rename_dir']):
-        raise FileNotFoundError("pending_rename_dir directory does not exist")
+    # consumer_dir
+    if not isinstance(app_dic['consumer_dir'], str):
+        raise ValueError("consumer_dir must be a string")
+    if not os.path.isdir(app_dic['consumer_dir']):
+        raise FileNotFoundError("consumer_dir directory does not exist")
 
      # rename_to_dir
     if not isinstance(app_dic['pending_sort_dir'], str):
@@ -66,7 +73,9 @@ def validate_sort_config(sort_dic):
 
 def load_config():
     config_exits = False
-    config_options = ['./config/config.toml', './scripts/config.toml']
+    config_options = [os.path.expanduser('~/.config/whispering-alchemy/config.toml'),
+                                         './config/config.toml', 
+                                         './scripts/config.toml']
     for config_path in config_options:
         if os.path.exists(config_path):
             config_exits = True
@@ -86,7 +95,7 @@ def load_config():
     variable_names = [
     "model_dir",
     "recordings_dir",
-    "pending_rename_dir",
+    "consumer_dir",
     "pending_sort_dir",
     "move_unsupported",
     "unsupported_dir",
@@ -142,14 +151,12 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
     """
 
     if not os.path.exists(from_name):
-        if verbose:
-            print(f"File '{from_name}' does not exist. Skipping rename.")
+        print(f"File '{from_name}' does not exist. Skipping rename.")
         return None
 
     if os.path.exists(to_name):
         if not add_count:
-            if verbose:
-                print(f"File '{to_name}' already exists. Skipping rename.")
+            print(f"File '{to_name}' already exists. Skipping rename.")
             return None
         else:
             # Add a numeric suffix to avoid overwriting
@@ -160,8 +167,7 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
             to_name = f"{base}_{i}{ext}"
 
             if i == 100:
-                if verbose:
-                    print(f"File '{to_name}' already exists and has to many duplicates. Skipping rename.")
+                print(f"File '{to_name}' already exists and has to many duplicates. Skipping rename.")
                 return None
 
     shutil.move(from_name, to_name)
@@ -170,18 +176,19 @@ def safe_rename(from_name, to_name, add_count=False, verbose = True):
     return to_name
 
 
-def get_first_words(audio_file_in, model_dir_in, max_words):
+def get_first_words(audio_file_in, model_dir_in, max_words, model="medium.en"):
     global current_transcriptions
 
     current_transcriptions += 1
-    model = whisper.load_model("large", download_root=model_dir_in)
+    #TODO make config for the rename model to be used so its not hardcoded
+    model = whisper.load_model(model, download_root=model_dir_in)
 
     # load audio and pad/trim it to fit 30 seconds
     audio = whisper.load_audio(audio_file_in)
     audio = whisper.pad_or_trim(audio)
 
     # make log-Mel spectrogram and move to the same device as the model
-    mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(model.device)
+    mel = whisper.log_mel_spectrogram(audio).to(model.device)
 
     # detect the spoken language
     #_, probs = model.detect_language(mel)
@@ -229,29 +236,29 @@ def get_transcription(audio_file_in, model_dir_in, model_mode_in = "large"):
     return result
 
 
-def rename_files(app_dic):
+def rename_files():
     global max_transcriptions
     global current_transcriptions
+    global app_config
     #name dic will be a double dicitionary to save the naming data
     name_dic = {}
 
-    file_ext_reg_str = get_file_types(app_dic["convertible_extensions"], "regex")
-    file_ext_tuple = get_file_types(app_dic["convertible_extensions"], "tuple")
+    file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
+    file_ext_tuple = get_file_types(app_config["convertible_extensions"], "tuple")
 
     '''                       yy      mm     dd     tttt   cnt       ext     '''
     sony_format_pattern = r'(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?' + file_ext_reg_str
 
     # get all audio files in the convert dir and extract information saving to the name_dic
-    rename_file_list = [ f for f in os.listdir(app_dic['pending_rename_dir']) if f.lower().endswith(file_ext_tuple) ]
+    rename_file_list = [ f for f in os.listdir(app_config['consumer_dir']) if f.lower().endswith(file_ext_tuple) ]
     for file_name in rename_file_list:
         if max_transcriptions <= current_transcriptions:
             print(f'got to the max transcriptions, no more transcribing')
             return name_dic
         
-        file_path = os.path.join(app_dic['pending_rename_dir'], file_name)
+        file_path = os.path.join(app_config['consumer_dir'], file_name)
 
-        if app_dic['verbose']:
-            print(f'Working on file: {file_name}', flush=True)
+        verbose_print(f'Working on file: {file_name}', flush=True)
 
         match = re.match(sony_format_pattern, file_name)
 
@@ -261,20 +268,17 @@ def rename_files(app_dic):
             first_words = '-'.join(
                 get_first_words(
                     file_path, 
-                    app_dic['model_dir'],
-                    app_dic['max_words']))
+                    app_config['model_dir'],
+                    app_config['max_words']))
         else:
-            if app_dic['verbose']:
-                print(f'file is not in one of the naming formats supported\n' + \
-                        f'No rename for: {file_name}\n')
+            verbose_print(f'file is not in one of the naming formats supported\nNo rename for: {file_name}\n')
         
-            if app_dic['move_unsupported']:
-                if app_dic['verbose']:
-                    print(f'Moving to {app_dic['unsupported_dir']}')
+            if app_config['move_unsupported']:
+                verbose_print(f'Moving to {app_config['unsupported_dir']}')
                 safe_rename(
-                    os.path.join(app_dic['pending_rename_dir'], file_name),
-                    os.path.join(app_dic['unsupported_dir'], file_name), 
-                    add_count = True, verbose = app_dic['verbose'])
+                    os.path.join(app_config['consumer_dir'], file_name),
+                    os.path.join(app_config['unsupported_dir'], file_name), 
+                    add_count = True, verbose = app_config['verbose'])
                 print('\n', end = '')
             continue
 
@@ -284,9 +288,9 @@ def rename_files(app_dic):
             f'.{ext}')
     
         safe_rename(
-            os.path.join(app_dic['pending_rename_dir'], file_name),
-            os.path.join(app_dic['pending_sort_dir'], new_file_name),
-            add_count = True, verbose = app_dic['verbose'])
+            os.path.join(app_config['consumer_dir'], file_name),
+            os.path.join(app_config['pending_sort_dir'], new_file_name),
+            add_count = True, verbose = app_config['verbose'])
         print('\n', end = '')
         
         # this is to ease sorting
@@ -299,8 +303,50 @@ def add_to_logseq(logseq_dir, file_path, name_dic):
     return;
 
 
-def sort_files(config_in):
-    app_config = config_in['app']
+def transcribe_files():
+    global max_transcriptions
+    global current_transcriptions
+    global app_config
+
+    file_ext_tuple = get_file_types(app_config["convertible_extensions"], "tuple")
+
+    transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']]
+    transcribe_dir_list.append(app_config['pending_sort_dir'])
+    for transcribe_dir in transcribe_dir_list:
+        verbose_print(f"\nWorking in directory '{transcribe_dir}'")
+        if not os.path.exists(transcribe_dir):
+            print(f"directory '{transcribe_dir}' does not exist or is not mounted. skipping...")
+            continue
+        trans_file_list = [ f for f in os.listdir(transcribe_dir) if f.lower().endswith(file_ext_tuple) ]
+        for file_name in trans_file_list:
+            if max_transcriptions <= current_transcriptions:
+                print(f'got to the max transcriptions, no more transcribing')
+                return ;
+            
+            verbose_print(f"Working on file '{file_name}'", flush=True)
+
+            file_path = os.path.join(transcribe_dir, file_name)
+            _, file_name_ext =  os.path.splitext(file_name)
+
+            new_file_name = f'{file_name}.{app_config['transcribe_model_mode']}.txt'
+            new_file_path = os.path.join(transcribe_dir, new_file_name)
+
+            if os.path.exists(new_file_path):
+                verbose_print(f"file '{file_name}' has transcription txt file. skipping...")
+                continue
+
+            # get transcription
+            trans_str = get_transcription(file_path, app_config['model_dir'], app_config['transcribe_model_mode'])
+
+            with open(new_file_path, "w") as file:
+                file.write(trans_str)
+            
+            verbose_print(f"transcribed file '{file_name}'")
+
+
+def sort_files():
+    global config_dic
+    global app_config
     model_mode = app_config['transcribe_model_mode']
 
     file_ext_reg_str = get_file_types(app_config["convertible_extensions"], "regex")
@@ -312,9 +358,9 @@ def sort_files(config_in):
     for file_name in sort_file_list:
         match = re.match(file_name_pattern, file_name)
         if not match:
-            if app_config['verbose']:
-                print(f'filename: {file_name} is not in a supported format to sort, please sort manually.')
+            verbose_print(f'filename: {file_name} is not in a supported format to sort, please sort manually.')
             continue
+
         groups = match.groups()
         name_dic = {
             'yy': groups[0], 
@@ -327,7 +373,7 @@ def sort_files(config_in):
         
         #todo custom sorting logic that is independant of using logseq; maybe there should be two functions logseq sorting and file sorting.
         # file based sorting
-        sort_config = config['sorting']
+        sort_config = config_dic['sorting']
         sort_model_mode = model_mode
         if sort_config['enable']:
             folders = sort_config['folder']
@@ -354,7 +400,7 @@ def sort_files(config_in):
                 continue
 
         # logseq sorting
-        logseq_config = config['logseq']
+        logseq_config = config_dic['logseq']
         logseq_model_mode = logseq_config['logseq_model_mode']
         if logseq_config['enable']:
             logseq_asset_dir = os.path.join(logseq_config['logseq_dir'], 'assets/voicenotes')
@@ -383,8 +429,7 @@ def sort_files(config_in):
                     # get transcription
                     trans_str = ('\n    - ' + get_transcription(file_path, app_config['model_dir'], logseq_model_mode)) if curr_tag['transcribe'] else ''
                     if len(trans_str) > logseq_config['max_transcription_len']:
-                        if app_config['verbose']:
-                            print(f'file: {file_name} has a trasnscription of more then {logseq_config['max_transcription_len']} characters, skipping transcription')
+                        verbose_print(f'file: {file_name} has a trasnscription of more then {logseq_config['max_transcription_len']} characters, skipping transcription')
                         trans_str = ''
 
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
@@ -400,103 +445,49 @@ def sort_files(config_in):
                         print(f"'{file_name}' was not able to be moved to the logseq asset folder, make sure you fix manually!")
                     else:
                         safe_rename(f'{file_path}.{logseq_model_mode}.txt', f'{file_path}.{logseq_model_mode}.txt.used')
-                    if app_config['verbose']:
-                        print(f"Added '{file_name}' link to logseq journal '{logseq_file}'\n")
+                    verbose_print(f"Added '{file_name}' link to logseq journal '{logseq_file}'\n")
 
                     break
 
 
-def transcribe_files(config_in):
-    global max_transcriptions
-    global current_transcriptions
-
-    app_config = config_in['app']
-    file_ext_tuple = get_file_types(app_config["convertible_extensions"], "tuple")
-
-    transcribe_dir_list = [dir for dir in app_config['pending_transcribe_dirs']]
-    transcribe_dir_list.append(app_config['pending_sort_dir'])
-    for transcribe_dir in transcribe_dir_list:
-        if app_config['verbose']:
-            print(f"\nWorking in directory '{transcribe_dir}'")
-        if not os.path.exists(transcribe_dir):
-            print(f"directory '{transcribe_dir}' does not exist or is not mounted. skipping...")
-            continue
-        trans_file_list = [ f for f in os.listdir(transcribe_dir) if f.lower().endswith(file_ext_tuple) ]
-        for file_name in trans_file_list:
-            if max_transcriptions <= current_transcriptions:
-                print(f'got to the max transcriptions, no more transcribing')
-                return ;
-            
-            if app_config['verbose']:
-                print(f"Working on file '{file_name}'", flush=True)
-
-            file_path = os.path.join(transcribe_dir, file_name)
-            _, file_name_ext =  os.path.splitext(file_name)
-
-            new_file_name = f'{file_name}.{app_config['transcribe_model_mode']}.txt'
-            new_file_path = os.path.join(transcribe_dir, new_file_name)
-
-            if os.path.exists(new_file_path):
-                if app_config['verbose']:
-                    print(f"file '{file_name}' has transcription txt file. skipping...")
-                continue
-
-            # get transcription
-            trans_str = get_transcription(file_path, app_config['model_dir'], app_config['transcribe_model_mode'])
-
-            with open(new_file_path, "w") as file:
-                file.write(trans_str)
-            
-            if app_config['verbose']:
-                print(f"transcribed file '{file_name}'")
-
-
 if __name__ == '__main__':
-    config = load_config()
+    global config_dic
+    global app_config
+    config_dic = load_config()
+    app_config = config_dic['app']
 
-    if config['app']['verbose']:
-        start_time = datetime.datetime.now()
-        print(f'\nStarted running script: {start_time}')
+    start_time = datetime.datetime.now()
+    verbose_print(f'\nStarted running script: {start_time}')
 
-    if config['app']['disable_transcribe']:
+    if app_config['disable_transcribe']:
         DEACTIVATE_TRANSCRIBE = True
         print("Transcriptions DISABLED!")
 
     global max_transcriptions
     global current_transcriptions
     current_transcriptions = 0
-    max_transcriptions = config['app']['transcribe_limit']
+    max_transcriptions = app_config['transcribe_limit']
     if max_transcriptions == 0:
         max_transcriptions = 100
 
-    if config['app']['verbose']:
-        print(f'Max transcriptions set to {max_transcriptions}')
-        print(f'only converting files with extentions: ',', '.join(get_file_types(config['app']["convertible_extensions"], "list")))
-        print('Successfully loaded config\n')
-        print('Start renaming files')
+    verbose_print(f'''Max transcriptions set to {max_transcriptions}
+only converting files with extentions: {', '.join(get_file_types(app_config["convertible_extensions"], "list"))}
+Successfully loaded config\n'
+Start renaming files''')
+
     if not DEACTIVATE_TRANSCRIBE:
-        rename_files(config['app'])
+        rename_files()
     else:
-        if config['app']['verbose']:
-            print('skipping rename because transcribing is not active')
+        verbose_print('skipping rename because transcribing is not active')
 
-    if config['app']['verbose']:
-        print('Finished renaming files')
-        print('\nStart manual transcriptions')
+    verbose_print('Finished renaming files\n\nStart manual transcriptions')
     if not DEACTIVATE_TRANSCRIBE:
-        transcribe_files(config)
+        transcribe_files()
     else:
-        if config['app']['verbose']:
-            print('skipping transcribe because transcribing is not active')
+        verbose_print('skipping transcribe because transcribing is not active')
 
-    if config['app']['verbose']:
-        print('Fininished manual transcriptions')
-        print('\nStart sorting files')
-    sort_files(config)
+    verbose_print('Fininished manual transcriptions\n\nStart sorting files')
+    sort_files()
 
-    if config['app']['verbose']:
-        print('Finished sorting files')
-
-    if config['app']['verbose']:
-        print(f'\nFinished running script: {datetime.datetime.now()}')
-        print(f'Time elapsed: {datetime.datetime.now() - start_time}')
+    verbose_print('Finished sorting files')
+    verbose_print(f'\nFinished running script: {datetime.datetime.now()}\nTime elapsed: {datetime.datetime.now() - start_time}')

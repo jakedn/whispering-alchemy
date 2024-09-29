@@ -16,7 +16,7 @@ convertible_extensions = ["mp3", "wav"]
 recordings_dir = "/app/recordings_dir" 
 
 # Directory of files pending rename
-pending_rename_dir = "/app/recordings_dir/intake-pending-rename"
+consumer_dir = "/app/recordings_dir/consumer"
 
 # Directory of files after renaming, awaiting sort
 pending_sort_dir = "/app/recordings_dir/intake-pending-sort"
