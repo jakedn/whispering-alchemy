@@ -1,0 +1,8 @@
+file_name=test.mp3
+
+podman run --rm -i \
+    --name=whisper-app \
+    --network none \
+    -v ~/links/cvols-local/whisper-model-vol:/model-dir:z \
+    --tmpfs /app/tmp:size=1G \
+    localhost/whisper-cpu:latest -v --model tiny.en < examples/${file_name}

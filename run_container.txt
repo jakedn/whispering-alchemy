@@ -1,6 +1,0 @@
-docker run -it \
--v ~/links/docker_volumes/whisper-models:/app/model \
--v ~/links/voice_recordings:/app/recordings_dir \
--v ~/links/logseq:/app/logseq \
--v ./scripts:/app/scripts \
---rm whisper-ai-transcriber

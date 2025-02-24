@@ -18,60 +18,70 @@ def verbose_print(in_str):
         print(in_str)
 
 
-def validate_app_config(app_dic):            
-    # model_dir
-    if not isinstance(app_dic['model_dir'], str):
-        raise ValueError("model_dir must be a string")
-    if not os.path.isdir(app_dic['model_dir']):
-        raise FileNotFoundError("model_dir directory does not exist")
+def validate_app_config():
+    global config_dic
+
+    expected_config = {
+        "app": {
+            "disable_transcribe": bool,
+            "transcribe_limit": int,
+            "model_dir": str,
+            "convertible_extensions": list,
+            "recordings_dir": str,
+            "consumer_dir": str,
+            "pending_sort_dir": str,
+            "pending_transcribe_dirs": list,
+            "transcribe_model_mode": str,
+            "move_unsupported": bool,
+            "unsupported_dir": str,
+            "verbose": bool,
+            "max_words": int
+        },
+        "sorting": {
+            "enable": bool,
+        },
+        "logseq": {
+            "enable": bool,
+            "logseq_dir": str,
+            "intake_tag": str,
+            "logseq_model_mode": str,
+            "max_transcription_len": int
+        }
+    }
+
+    errors = []
+    extra_keys = []
+
+    # Iterate through the expected schema
+    for key, expected_type in expected_schema.items():
+        full_key = f"{parent_key}.{key}" if parent_key else key  # For nested keys
+
+        if key not in config:
+            errors.append(f"Missing key: {full_key}")
+        else:
+            if isinstance(expected_type, dict):
+                # If the value is a nested dictionary, validate it recursively
+                if isinstance(config[key], dict):
+                    errors.extend(validate_config(config[key], expected_type, full_key))
+                else:
+                    errors.append(f"Incorrect type for '{full_key}': expected dict, got {type(config[key]).__name__}")
+            else:
+                # Regular (non-nested) value check
+                if not isinstance(config[key], expected_type):
+                    errors.append(f"Incorrect type for '{full_key}': expected {expected_type.__name__}, got {type(config[key]).__name__}")
     
-    # recordings_dir
-    if not isinstance(app_dic['recordings_dir'], str):
-        raise ValueError("recordings_dir must be a string")
-    if not os.path.isdir(app_dic['recordings_dir']):
-        raise FileNotFoundError("recordings_dir directory does not exist")
+    # Check for extra keys that are not in the expected schema
+    extra_keys = set(config.keys()) - set(expected_schema.keys())
+    if extra_keys:
+        extra_keys_full = [f"{parent_key}.{key}" if parent_key else key for key in extra_keys]
+        extra_keys.append(f"Extra keys found: {', '.join(extra_keys_full)}")
 
-    # consumer_dir
-    if not isinstance(app_dic['consumer_dir'], str):
-        raise ValueError("consumer_dir must be a string")
-    if not os.path.isdir(app_dic['consumer_dir']):
-        raise FileNotFoundError("consumer_dir directory does not exist")
-
-     # rename_to_dir
-    if not isinstance(app_dic['pending_sort_dir'], str):
-        raise ValueError("pending_sort_dir must be a string")
-    if not os.path.isdir(app_dic['pending_sort_dir']):
-        raise FileNotFoundError("pending_sort_dir directory does not exist")
-
-    # move_if_rename_fail
-    if not isinstance(app_dic['move_unsupported'], bool):
-        raise ValueError("move_unsupported must be a boolean (True/False)")
-
-    if app_dic['move_unsupported']: # if the move is true we need to check rename_failed_dir
-        if not isinstance(app_dic['unsupported_dir'], str):
-            raise ValueError("unsupported_dir must be a string")
-        if not os.path.isdir(app_dic['unsupported_dir']):
-            raise FileNotFoundError("unsupported_dir directory does not exist")
-
-    # verbose_mode
-    if not isinstance(app_dic['verbose'], bool):
-        raise ValueError("verbose must be a boolean (True/False)")
-
-    # words_in_name
-    if not isinstance(app_dic['max_words'], int):
-        raise ValueError("max_words must be an integer")
-    if not 0 < app_dic['max_words'] <= 20:  # Assuming a reasonable range
-        raise ValueError("max_words must be between 1 and 20")
-
-    return;
-
-
-def validate_sort_config(sort_dic):
-
-    return;
+    return errors
 
 
 def load_config():
+    global config_dic
+
     config_exits = False
     config_options = [os.path.expanduser('~/.config/whispering-alchemy/config.toml'),
                                          './config/config.toml', 
@@ -87,30 +97,17 @@ def load_config():
 
     with open(config_file_path, 'rb') as file:
         config_dic = tomllib.load(file)
-    # check validity
-    if 'app' not in config_dic.keys():
-        print('app section not in config, exiting...')
-        exit()
-    
-    variable_names = [
-    "model_dir",
-    "recordings_dir",
-    "consumer_dir",
-    "pending_sort_dir",
-    "move_unsupported",
-    "unsupported_dir",
-    "verbose",
-    "max_words",
-    ]
 
-    missing_vars = [var for var in variable_names if var not in config_dic['app']]
-    if missing_vars:  # Check if any variables are missing
-        print(f"The following variables are missing under [app] in config: {', '.join(missing_vars)}")
-        print("Exiting...")
-        exit()
+    config_errors = validate_config()
 
-    validate_app_config(config_dic['app'])
-    return config_dic
+    if config_errors:
+        print("Configuration errors found:")
+        for error in validation_errors:
+            print(f" - {error}")
+    else:
+        verbose_print("Configuration is valid!")
+
+    return;
     
 
 def get_file_types(in_file_types, return_type = "list"):
@@ -252,18 +249,15 @@ def rename_files():
     # get all audio files in the convert dir and extract information saving to the name_dic
     rename_file_list = [ f for f in os.listdir(app_config['consumer_dir']) if f.lower().endswith(file_ext_tuple) ]
     for file_name in rename_file_list:
-        if max_transcriptions <= current_transcriptions:
-            print(f'got to the max transcriptions, no more transcribing')
-            return name_dic
         
         file_path = os.path.join(app_config['consumer_dir'], file_name)
 
         verbose_print(f'Working on file: {file_name}', flush=True)
 
-        match = re.match(sony_format_pattern, file_name)
+        sony_pat_match = re.match(sony_format_pattern, file_name)
 
-        if match:
-            yy, mm, dd, tttt, _, ext = match.groups()
+        if sony_pat_match:
+            yy, mm, dd, tttt, _, ext = sony_pat_match.groups()
             ext = ext.lower()
             first_words = '-'.join(
                 get_first_words(
@@ -293,10 +287,7 @@ def rename_files():
             add_count = True, verbose = app_config['verbose'])
         print('\n', end = '')
         
-        # this is to ease sorting
-        name_dic[file_name] = {'yy': yy, 'mm': mm, 'dd': dd, 'tttt': tttt, 'ext': ext}
-        name_dic[file_name]['words'] = first_words
-    return name_dic
+    return;
 
 
 def add_to_logseq(logseq_dir, file_path, name_dic):
@@ -435,7 +426,7 @@ def sort_files():
                     with open(os.path.join(logseq_journal_dir, logseq_file), "a") as file:
                         #TODO create entry in logseq config for the intake tag so mine isnt hard codded
                         file.write(
-                            f'{block_prefix}{tag_name}[[📨validate whisper]]' +
+                            f'{block_prefix}{tag_name}[[{logseq_config['intake_tag']}]]' +
                             f'\n    - ![voice recording](../assets/voicenotes/{file_name})' + 
                             trans_str)
                     
@@ -453,7 +444,8 @@ def sort_files():
 if __name__ == '__main__':
     global config_dic
     global app_config
-    config_dic = load_config()
+    
+    load_config()
     app_config = config_dic['app']
 
     start_time = datetime.datetime.now()
