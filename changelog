@@ -1,0 +1,35 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+
+
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+
+## [1.0.0] - 2025-02-24
+
+### Added
+In this release there are many structural changes, among them:
+- README documentation is added in addition to code comments and docstrings, I will try to prioritize human written documentation.
+- cpu only version of the whisper container, this reduces the image size from ~6G to ~2.8G if you don't have access to gpu.
+
+### Changed
+- Scripts are segregating into parts. The idea is each segment will do one things, and hopefully, do it well. The main python script was stripped of sorting, logseq compatibaty, these will be added in the near future.
+>NOTE this breaks previous usage wheere one script read a config file transcribed AND sorted files.
+
+- babashka is used on host instead of bash, or python scripts. You can learn more about babashka [here]().
+
+- updated container base to python-slim:3.13
+
+### Removed
+### Fixed

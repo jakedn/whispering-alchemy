@@ -1,0 +1,17 @@
+# https://github.com/jpetazzo/whisperfiles/blob/main/Dockerfile.slim.torchpip
+
+FROM python:3.13-slim
+
+ARG PYTORCH_PACKAGES=cpu
+
+RUN apt-get update && apt-get install ffmpeg git -y && rm -rf /var/lib/apt/lists/*
+
+RUN pip install torch --extra-index-url https://download.pytorch.org/whl/$PYTORCH_PACKAGES
+RUN pip install git+https://github.com/openai/whisper.git && \
+    rm -rf /root/.cache/pip
+
+WORKDIR /app
+
+COPY ./src/scripts/alchemize.py /app/scripts/alchemize.py
+
+ENTRYPOINT ["python3", "./scripts/alchemize.py"]

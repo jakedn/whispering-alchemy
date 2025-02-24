@@ -29,7 +29,7 @@ transcribe_model_mode = "medium"
 
 # Move files that their formats aren't recognized, and the location for rename failures. 
 move_unsupported = false
-unsupported_dir = "/app/recordings_dir/intake-pending-rename/pending-manual-rename" 
+unsupported_dir = "/app/recordings_dir/consume_failed" 
 
 # Print detailed output
 verbose = true  
@@ -48,9 +48,10 @@ folder.name.dir = "/app/singing-songs"
 [logseq]
 enable = true
 logseq_dir = "/app/logseq"
+intake_tag = "📨validate whisper"
 
 # logseq transcription mode
-logseq_model_mode = "large"
+logseq_model_mode = "base"
 
 # max length that will be put into logseq (in characters)
 max_transcription_len = 2000

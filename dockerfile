@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -8,6 +8,6 @@ RUN pip3 install --no-cache-dir "git+https://github.com/openai/whisper.git"
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./scripts/alchemize.py /app/scripts/alchemize.py
+COPY ./src/scripts/alchemize.py /app/scripts/alchemize.py
 
 ENTRYPOINT ["python3", "./scripts/alchemize.py"]

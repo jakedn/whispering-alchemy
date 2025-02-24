@@ -1,0 +1,68 @@
+{:app 
+ {;; Disables transcription, this will make sure that the whisper model isn't loaded.
+  :disable-transcribe false
+  
+  ;; limits the script to only X transcriptions per run, where X is the value defined below. 
+  :transcribe-limit 0
+  
+  ;; Directory to store Whisper models 
+  :model-dir "/app/model"
+  
+  ;; File type extensions that we transcribe and move; 
+  ;; for ex: if you want to run on mp3 you can add "mp3" or ".mp3" to the list
+  :convertible-extensions ["mp3" "wav"]
+  
+  ;; Main recordings directory
+  :recordings-dir "/app/recordings_dir"
+ 
+  ;; Directory of files pending rename 
+  :consumer-dir "/app/recordings_dir/consumer"
+
+  ;; Directory of files after renaming, awaiting sort
+  :pending-sort-dir "/app/recordings_dir/intake-pending-sort"
+       
+  ;; List of directories that contain files to transcribe (manually sorted directories) 
+  :pending-transcribe-dirs ["/app/recordings_dir/intake-pending-transcribe"]
+
+  ;; What model should be used for the transcribe dirs? 
+  :transcribe-model-mode "medium"
+
+  ;; Move files that their formats aren't recognized, and the location for rename failures.
+  :move-unsupported false 
+  :unsupported-dir "/app/recordings_dir/intake-pending-rename/pending-manual-rename"
+
+  ;; Print detailed output 
+  :verbose true
+
+  ;; Maximum words to include in file renaming 
+  :max-words 4}
+
+ :sorting {:enable true} 
+
+ :logseq {:enable true
+          :logseq-dir "/app/logseq"
+
+          ;; logseq transcription mode
+          :logseq-model-mode "large"
+
+          ;; max length that will be put into logseq (in characters)
+          :max-transcription-len 2000}
+ 
+ :folders 
+ {:songs {:keywords ["singing"]
+            :dir "/app/singing-songs"}}
+ 
+ ;; Tags map, add more as necessary
+ :tags 
+ {;; PARA tags 
+  :project {:tag-str "📐 project"
+            :keywords ["project" "para project"]
+            :transcribe true}
+         
+  ;; HEALTH tags
+  :health {:tag-str "⚕️ Health"
+           :keywords ["health" "personal health"]
+           :transcribe true}
+  :health-stats {:tag-str "📊 health-stats"
+                 :keywords ["health statistics"]
+                 :transcribe true}}}

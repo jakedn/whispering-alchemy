@@ -1,1 +1,0 @@
-docker build -t whisper-ai-transcriber -f dockerfile_slim .
