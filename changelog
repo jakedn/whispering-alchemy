@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - file_proccessing.clj this file contains functions that can run transcriptions on a whole folder.
+  Ability to cap the number of transcriptions/renames per run.
 
 ### Changed
 

@@ -5,6 +5,7 @@
             [babashka.pods :as pods]
             [run-podman :as rp]))
 
+(def SUCCESS 0)
 (def ^:dynamic *verbose* false)
 (def sony-format {:pattern #"(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(wav|mp3)"
                   :func (fn [[_ yy mm dd tttt num]]
@@ -17,6 +18,18 @@
   [& args]
   (when *verbose*
     (apply println args)))
+
+(defn run-x-times
+  "Takes in a function and sequence of inputes for that function.
+   It runs the function on each element of the sequence or until it reaches max successes"
+  [func input-seq success-code max & args]
+  (reduce (fn [acc elem]
+            (if (< acc max)
+              (if (= success-code
+                     (apply func elem args))
+                (+ acc 1) acc)
+              acc))
+          0 input-seq))
 
 (defn rename-file
   ""
@@ -37,11 +50,16 @@
       (do (verbose-print "File: " file-name " doesn't have supported format.\n")
           1)
       (do (fs/move file (fs/path rename-dir new-name))
-          (verbose-print "Moved " file-name " -> " new-name)))))
+          (verbose-print "Moved " file-name " -> " new-name)
+          SUCCESS))))
 
-(defn process-intake [intake-dir rename-dir]
-  (doseq [file (fs/list-dir intake-dir)]
-    (rename-file file rename-dir)))
+(defn process-intake
+  "Runs rename-file on all files in a specific directory. Moves them to the rename-dir specified.
+   When max is specified, only 'max' transcriptions will occur otherwise max is 100."
+  ([intake-dir] (process-intake intake-dir intake-dir))
+  ([intake-dir rename-dir] (process-intake intake-dir rename-dir 100))
+  ([intake-dir rename-dir max]
+   (run-x-times rename-file (fs/list-dir intake-dir) SUCCESS max rename-dir)))
 
 (defn transcribe-file
   "Transcribe a given file with the given model using whisper AI."
@@ -54,29 +72,31 @@
          out-file-path (fs/file file-dir out-file)
          audio? (some #(= % ext) ["mp3" "wav"])
          trans-exists? (fs/exists? out-file-path)
-         good-size? (and (> (fs/size file) 100)
-                         (< fs/size file 20000000))
-         do-trans? (and audio? (not trans-exists?) (not good-size?))
+         ;; todo get rid of magic numbers
+         file-size (fs/size file)
+         good-size? (and (> file-size 100)
+                         (< file-size 15000000))
+         do-trans? (and audio? (not trans-exists?) good-size?)
          opts (cond-> ["--model" model]
                 *verbose* (conj "-v"))]
      (when audio?
        (verbose-print "Transcribing file: " file-name)
-       (when trans-exists?
-         (verbose-print "Transcription exists ... skipping"))
-       (when (not good-size?)
-         (verbose-print "File is to small or to big ... skipping")))
+       (cond
+         trans-exists?    (verbose-print "Transcription exists ... skipping")
+         (not good-size?) (verbose-print "File is to small or to big ... skipping")))
      (when do-trans?
        (spit out-file-path (apply rp/transcribe-audio file opts))
-       (verbose-print "Transcribed file: " file-name " to " out-file)))))
+       (verbose-print "Transcribed file: " file-name " to " out-file)
+       SUCCESS))))
 
 (defn transcribe-all
-  "Runs transcribe file on all file in a specific directory with a given model."
-  ([dir] (transcribe-all dir "base" 100))
+  "Runs transcribe file on all file in a specific directory with a given model.
+   When max is specified, only 'max' transcriptions will occur."
+  ;; todo get reid of magic numbers
+  ([dir] (transcribe-all dir "base"))
   ([dir model] (transcribe-all dir model 100))
   ([dir model max]
-   ;TODO add maximum transcribtion amount
-   (doseq [file (fs/list-dir dir)]
-    (transcribe-file file model))))
+   (run-x-times transcribe-file (fs/list-dir dir) SUCCESS max model)))
 
 (defn -main []
   ;rename files
