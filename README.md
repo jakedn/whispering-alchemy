@@ -14,28 +14,29 @@
 + [Todo](#todo)
 + [License](#license)
 
-## About {#about}
+## About
 
 Whispering Alchemy is a suite of scripts with one purpose:
-Start with speech and voicenote files and end with sorted transcriptions in a semi-automated way.
+Start with speech and voicenote files and end with sorted transcriptions.
 
-The script defines a docker container to make it more portable and in my opinion, easier to set up.
+The suite is based on a python script that can be containerized.
 
-Future releases should have a make file to make the setup even easier.
+Most of the managment and processing scripts are written in clojure.
 
-## Getting Started {#getting_started}
+## Getting Started
 
-### Prerequisites {#prerequisites}
+### Prerequisites
 
-You need to have docker (or docker desktop) installed on your machine.
+- You need to have docker (or docker desktop) installed on your machine.
 >I currently don't support running the script natively, those of you familiar with python should be able to get it working.
 
-## Installing the requirements {#install}
+- Babahska TODO add link
 
-### Using the Makefile {#install-make}
+## Installing the requirements
 
-1. Install docker desktop
-2. Run the command in the run_build_cmd.txt file
+### Using the Makefile
+
+1. Install docker desktop [or podman if that is your preference]
+2. Clone this repository
+3. Build the whisper-cpu container using one of the build commands under container-files
 >Note you can skip this step if you already made an image, if you don't know what that means run step 2.
-3. Make your own config file; start off by copying the example-config.toml to the scripts directory.
-4. Run the command in the run_cmd.txt file

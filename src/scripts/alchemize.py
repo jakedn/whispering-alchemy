@@ -10,8 +10,6 @@ models = "/model-dir"
 
 
 def get_first_words(audio_file_in, model_dir_in, max_words, trans_language = "en", model_name="base"):
-
-    #TODO make config for the rename model to be used so its not hardcoded
     model = whisper.load_model(model_name, download_root=model_dir_in)
 
     # load audio and pad/trim it to fit 30 seconds
@@ -49,7 +47,6 @@ def get_first_words(audio_file_in, model_dir_in, max_words, trans_language = "en
 
 
 def get_transcription(audio_file_in, model_dir_in, trans_language = "en", model_name = "base.en"):
-
     result = ''
 
     model = whisper.load_model(model_name, download_root=model_dir_in)
@@ -69,6 +66,7 @@ def get_transcription(audio_file_in, model_dir_in, trans_language = "en", model_
 
 
 if __name__ == '__main__':
+    model_choices = ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium.en", "turbo"]
 
     parser = argparse.ArgumentParser(description="Transcribe audio files using Whisper.")
     parser.add_argument("--audio-file-ext", dest="audio_ext", default="mp3", help="Path to the audio file")
@@ -76,11 +74,9 @@ if __name__ == '__main__':
     parser.add_argument("--lang", type=str, default="en", help="Language of transcription")
     parser.add_argument("--output", type=str, default="text", help="output type")
     parser.add_argument("--model", type=str, default="base", 
-                        choices=["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "turbo"], 
+                        choices=model_choices, 
                         help="Whisper model (base, small, medium, large...)")
-    parser.add_argument("--words-model", dest="words_model", type=str, default="tiny", 
-                        choices=["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "turbo"],
-                        help="Whisper model (base, small, medium, large...)")
+    parser.add_argument("--download-models", dest="download_models", action="store_true", default=False, help="Download whisper AI models")
     parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
 
     args = parser.parse_args()
@@ -88,6 +84,14 @@ if __name__ == '__main__':
     start_time = datetime.datetime.now()
     if args.verbose:
         print(f'\nStarted running script: {start_time}', file = sys.stderr)
+
+    if args.download_models:
+        for m in model_choices:
+            model = whisper.load_model(m, download_root=models)
+        if args.verbose:
+            print("Downloaded enabled models")
+            print(f'\nFinished running script: {datetime.datetime.now()}\nTime elapsed: {datetime.datetime.now() - start_time}', file=sys.stderr)
+        exit(0)
 
     # copy file to transcribe
     with open(f"/app/tmp/audio.{args.audio_ext}", 'wb') as output_file: # open in binary mode
@@ -101,8 +105,8 @@ if __name__ == '__main__':
 
     # get name
     if args.output == "words":
-        words = get_first_words(audio_file, models, args.get_words, args.lang, args.words_model)
-        print(words)
+        words = get_first_words(audio_file, models, args.get_words, args.lang, args.model)
+        print(" ".join(words))
     else:
         # get transcription
         trans = get_transcription(audio_file, models, args.lang, args.model)

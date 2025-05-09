@@ -1,7 +1,6 @@
 # this excludes the run command (the user should define it)
 /scripts/config.toml
-
-podman-build.txt
+/src/playground.clj
 
 # ide local files
 /.clj-kondo
