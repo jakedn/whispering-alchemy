@@ -7,6 +7,9 @@
 
 (def SUCCESS 0)
 (def ^:dynamic *verbose* false)
+(def ^:dynamic *min-file-size* 100)
+(def ^:dynamic *max-file-size* 15000000)
+
 (def sony-format {:pattern #"(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(wav|mp3)"
                   :func (fn [[_ yy mm dd tttt num]]
                           (str "20" yy "-" mm "-" dd "_" tttt num "_"))})
@@ -74,8 +77,8 @@
          trans-exists? (fs/exists? out-file-path)
          ;; todo get rid of magic numbers
          file-size (fs/size file)
-         good-size? (and (> file-size 100)
-                         (< file-size 15000000))
+         good-size? (and (> file-size *min-file-size*) 
+                         (< file-size *max-file-size*))
          do-trans? (and audio? (not trans-exists?) good-size?)
          opts (cond-> ["--model" model]
                 *verbose* (conj "-v"))]

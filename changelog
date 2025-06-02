@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - file_proccessing.clj this file contains functions that can run transcriptions on a whole folder.
   Ability to cap the number of transcriptions/renames per run.
 
+- Ability to limit file size minimum and maximum (in file_processing.clj)
+
 ### Changed
 
 ### Removed
