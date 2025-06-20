@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Ability to limit file size minimum and maximum (in file_processing.clj)
 
+- Suppord for file extentions aac, m4a and flac
+
 ### Changed
 
 ### Removed

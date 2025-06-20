@@ -10,7 +10,7 @@
 (def ^:dynamic *min-file-size* 100)
 (def ^:dynamic *max-file-size* 15000000)
 
-(def sony-format {:pattern #"(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(wav|mp3)"
+(def sony-format {:pattern #"(\d{2})(\d{2})(\d{2})_(\d{4})(_\d{2})?\.(wav|mp3|m4a|aac|flac)"
                   :func (fn [[_ yy mm dd tttt num]]
                           (str "20" yy "-" mm "-" dd "_" tttt num "_"))})
 
@@ -73,7 +73,7 @@
          [base-name ext] (fs/split-ext file-name)
          out-file (str base-name "." model ".txt")
          out-file-path (fs/file file-dir out-file)
-         audio? (some #(= % ext) ["mp3" "wav"])
+         audio? (some #(= % ext) ["mp3" "wav" "m4a" "aac" "flac"])
          trans-exists? (fs/exists? out-file-path)
          ;; todo get rid of magic numbers
          file-size (fs/size file)
